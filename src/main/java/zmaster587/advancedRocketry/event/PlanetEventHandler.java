@@ -598,13 +598,16 @@ public class PlanetEventHandler {
     @SubscribeEvent
     public void worldSaveEvent(WorldEvent.Save event) {
         //TODO: save only the one dimension
-        if (event.getWorld().provider.getDimension() == 0)
-            try {
-                DimensionManager.getInstance().saveDimensions(DimensionManager.workingPath);
-            } catch (Exception e) {
-                AdvancedRocketry.logger.fatal("An error has occurred saving planet data, this can happen if another mod causes the game to crash during game load.  If the game has fully loaded, then this is a serious error, Advanced Rocketry data has not been saved.");
-                e.printStackTrace();
-            }
+        if (event.getWorld().isRemote || event.getWorld().provider.getDimension() != 0) {
+            return;
+        }
+
+        try {
+            DimensionManager.getInstance().saveDimensions(DimensionManager.workingPath);
+        } catch (Exception e) {
+            AdvancedRocketry.logger.fatal("An error has occurred saving planet data, this can happen if another mod causes the game to crash during game load.  If the game has fully loaded, then this is a serious error, Advanced Rocketry data has not been saved.");
+            e.printStackTrace();
+        }
     }
 
 
