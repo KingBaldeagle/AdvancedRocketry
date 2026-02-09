@@ -580,10 +580,7 @@ public class DimensionManager implements IGalaxy {
     }
 
     private boolean shouldWritePlanetDefs(File planetFile) {
-        if (!planetFile.exists()) {
-            return true;
-        }
-        return planetDefsLastModified > 0 && planetFile.lastModified() <= planetDefsLastModified;
+        return !planetFile.exists();
     }
 
     private void updatePlanetDefsTimestamp(File planetFile) {
