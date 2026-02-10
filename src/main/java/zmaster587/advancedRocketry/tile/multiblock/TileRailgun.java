@@ -459,6 +459,14 @@ public class TileRailgun extends TileMultiPowerConsumer implements IInventory, I
     @Override
     public boolean onLinkComplete(@Nonnull ItemStack item, TileEntity entity,
                                   EntityPlayer player, World world) {
+        if (entity instanceof TileRailgun) {
+            ItemLinker.setMasterCoords(item, entity.getPos());
+            ItemLinker.setDimId(item, world.provider.getDimension());
+            if (!world.isRemote) {
+                player.sendMessage(new TextComponentTranslation("msg.linker.success"));
+            }
+            return true;
+        }
         return false;
     }
 

@@ -71,6 +71,7 @@ public class DimensionManager implements IGalaxy {
     private boolean hasBeenInitialized = false;
     private HashMap<Integer, DimensionProperties> dimensionList;
     private HashMap<Integer, StellarBody> starList;
+    private long planetDefsLastModified = -1;
 
     public DimensionManager() {
         dimensionList = new HashMap<>();
@@ -578,6 +579,14 @@ public class DimensionManager implements IGalaxy {
         starList.remove(id);
     }
 
+    private boolean shouldWritePlanetDefs(File planetFile) {
+        return !planetFile.exists();
+    }
+
+    private void updatePlanetDefsTimestamp(File planetFile) {
+        planetDefsLastModified = planetFile.lastModified();
+    }
+
     /**
      * Saves all dimension data, satellites, and space stations to disk, SHOULD NOT BE CALLED OUTSIDE OF WORLDSAVEEVENT
      *
@@ -632,20 +641,25 @@ public class DimensionManager implements IGalaxy {
 
         try {
             File planetXMLOutput = new File(net.minecraftforge.common.DimensionManager.getCurrentSaveRootDirectory(), filePath + worldXML);
-            planetXMLOutput.createNewFile();
+            if (shouldWritePlanetDefs(planetXMLOutput)) {
+                planetXMLOutput.createNewFile();
 
-            File tmpFileXml = File.createTempFile("ARXMLdata_", ".DAT", net.minecraftforge.common.DimensionManager.getCurrentSaveRootDirectory());
-            FileOutputStream bufOutStream = new FileOutputStream(tmpFileXml);
-            bufOutStream.write(xmlOutput.getBytes());
+                File tmpFileXml = File.createTempFile("ARXMLdata_", ".DAT", net.minecraftforge.common.DimensionManager.getCurrentSaveRootDirectory());
+                FileOutputStream bufOutStream = new FileOutputStream(tmpFileXml);
+                bufOutStream.write(xmlOutput.getBytes());
 
-            //Commit to OS, tell OS to commit to disk, release and close stream
-            bufOutStream.flush();
-            bufOutStream.getFD().sync();
-            bufOutStream.close();
+                //Commit to OS, tell OS to commit to disk, release and close stream
+                bufOutStream.flush();
+                bufOutStream.getFD().sync();
+                bufOutStream.close();
 
-            //Temp file was written OK, commit
-            Files.copy(tmpFileXml.toPath(), planetXMLOutput.toPath(), REPLACE_EXISTING);
-            tmpFileXml.delete();
+                //Temp file was written OK, commit
+                Files.copy(tmpFileXml.toPath(), planetXMLOutput.toPath(), REPLACE_EXISTING);
+                tmpFileXml.delete();
+                updatePlanetDefsTimestamp(planetXMLOutput);
+            } else {
+                logger.warn("planetDefs.xml was modified externally; skipping overwrite");
+            }
 
             File file = new File(net.minecraftforge.common.DimensionManager.getCurrentSaveRootDirectory(), filePath + tempFile);
             file.createNewFile();
@@ -820,16 +834,22 @@ public class DimensionManager implements IGalaxy {
                 logger.fatal("A serious error has occurred while loading the planetDefs XML");
                 FMLCommonHandler.instance().exitJava(-1, false);
             }
+            if (localFile.exists()) {
+                updatePlanetDefsTimestamp(localFile);
+            }
         }
         //End load planet files
 
         //Register hard coded dimensions
-        Map<Integer, IDimensionProperties> loadedPlanets = loadDimensions(zmaster587.advancedRocketry.dimension.DimensionManager.workingPath);
+        boolean useXmlDefinition = dimCouplingList != null;
+        Map<Integer, IDimensionProperties> loadedPlanets = useXmlDefinition
+                ? Collections.emptyMap()
+                : loadDimensions(zmaster587.advancedRocketry.dimension.DimensionManager.workingPath);
         if (loadedPlanets.isEmpty()) {
             int numRandomGeneratedPlanets = 9;
             int numRandomGeneratedGasGiants = 1;
 
-            if (dimCouplingList != null) {
+            if (useXmlDefinition) {
                 logger.info("Loading initial planet config!");
 
                 for (StellarBody star : dimCouplingList.stars) {
@@ -842,9 +862,18 @@ public class DimensionManager implements IGalaxy {
                 }
 
                 for (StellarBody star : dimCouplingList.stars) {
-                    numRandomGeneratedPlanets = loader.getMaxNumPlanets(star);
-                    numRandomGeneratedGasGiants = loader.getMaxNumGasGiants(star);
-                    dimCouplingList.dims.addAll(generateRandomPlanets(star, numRandomGeneratedPlanets, numRandomGeneratedGasGiants));
+                    boolean hasExplicitPlanets = false;
+                    for (DimensionProperties properties : dimCouplingList.dims) {
+                        if (properties.getStarId() == star.getId()) {
+                            hasExplicitPlanets = true;
+                            break;
+                        }
+                    }
+                    if (!hasExplicitPlanets) {
+                        numRandomGeneratedPlanets = loader.getMaxNumPlanets(star);
+                        numRandomGeneratedGasGiants = loader.getMaxNumGasGiants(star);
+                        dimCouplingList.dims.addAll(generateRandomPlanets(star, numRandomGeneratedPlanets, numRandomGeneratedGasGiants));
+                    }
                 }
 
                 loadedFromXML = true;
