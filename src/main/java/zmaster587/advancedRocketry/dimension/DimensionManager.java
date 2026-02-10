@@ -862,9 +862,18 @@ public class DimensionManager implements IGalaxy {
                 }
 
                 for (StellarBody star : dimCouplingList.stars) {
-                    numRandomGeneratedPlanets = loader.getMaxNumPlanets(star);
-                    numRandomGeneratedGasGiants = loader.getMaxNumGasGiants(star);
-                    dimCouplingList.dims.addAll(generateRandomPlanets(star, numRandomGeneratedPlanets, numRandomGeneratedGasGiants));
+                    boolean hasExplicitPlanets = false;
+                    for (DimensionProperties properties : dimCouplingList.dims) {
+                        if (properties.getStarId() == star.getId()) {
+                            hasExplicitPlanets = true;
+                            break;
+                        }
+                    }
+                    if (!hasExplicitPlanets) {
+                        numRandomGeneratedPlanets = loader.getMaxNumPlanets(star);
+                        numRandomGeneratedGasGiants = loader.getMaxNumGasGiants(star);
+                        dimCouplingList.dims.addAll(generateRandomPlanets(star, numRandomGeneratedPlanets, numRandomGeneratedGasGiants));
+                    }
                 }
 
                 loadedFromXML = true;
