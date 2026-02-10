@@ -841,12 +841,15 @@ public class DimensionManager implements IGalaxy {
         //End load planet files
 
         //Register hard coded dimensions
-        Map<Integer, IDimensionProperties> loadedPlanets = loadDimensions(zmaster587.advancedRocketry.dimension.DimensionManager.workingPath);
+        boolean useXmlDefinition = dimCouplingList != null;
+        Map<Integer, IDimensionProperties> loadedPlanets = useXmlDefinition
+                ? Collections.emptyMap()
+                : loadDimensions(zmaster587.advancedRocketry.dimension.DimensionManager.workingPath);
         if (loadedPlanets.isEmpty()) {
             int numRandomGeneratedPlanets = 9;
             int numRandomGeneratedGasGiants = 1;
 
-            if (dimCouplingList != null) {
+            if (useXmlDefinition) {
                 logger.info("Loading initial planet config!");
 
                 for (StellarBody star : dimCouplingList.stars) {
